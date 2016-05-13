@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import time
 
-from boto.exception import NoAuthHandlerFound
+from exceptions import *
+
+import boto
 from boto import ec2
+
 
 from backup_monkey.exceptions import BackupMonkeyException
 
@@ -115,7 +119,22 @@ class BackupMonkey(object):
                 description_parts.append(volume.attach_data.device)
             description = ' '.join(description_parts)
             log.info('Creating snapshot of %s: %s', volume.id, description)
-            volume.create_snapshot(description)
+            for attempt in range(5):
+                try:
+                    volume.create_snapshot(description)
+                except boto.exception.EC2ResponseError, e:
+                    log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
+                    break
+                except boto.exception.BotoServerError, e:
+                    log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
+                    time.sleep(attempt)
+                    break
+                else:
+                    break
+            else:
+                log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume.id, attempt)
+                continue
+
         return True
 
 
@@ -147,7 +166,22 @@ class BackupMonkey(object):
             for i in range(self._snapshots_per_volume, num_snapshots):
                 snapshot = most_recent_snapshots[i]
                 log.info(' Deleting %s: %s', snapshot.id, snapshot.description)
-                snapshot.delete()
+                for attempt in range(5):
+                    try:
+                        snapshot.delete()
+                    except boto.exception.EC2ResponseError, e:
+                        log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
+                        break
+                    except boto.exception.BotoServerError, e:
+                        log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
+                        time.sleep(attempt)
+                        break
+                    else:
+                        break
+                else:
+                    log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume.id, attempt)
+                    continue
+
         return True
 
 
