@@ -170,16 +170,16 @@ class BackupMonkey(object):
                     try:
                         snapshot.delete()
                     except boto.exception.EC2ResponseError, e:
-                        log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
+                        log.error("Encountered Error %s on volume %s", e.error_code, volume_id)
                         break
                     except boto.exception.BotoServerError, e:
-                        log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
+                        log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume_id, attempt)
                         time.sleep(attempt)
                         break
                     else:
                         break
                 else:
-                    log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume.id, attempt)
+                    log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume_id, attempt)
                     continue
 
         return True
