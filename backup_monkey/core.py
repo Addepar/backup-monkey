@@ -13,6 +13,7 @@
 # limitations under the License.
 import logging
 import time
+import subprocess
 
 from exceptions import *
 
@@ -26,7 +27,7 @@ __all__ = ('BackupMonkey', 'Logging')
 log = logging.getLogger(__name__)
 
 class BackupMonkey(object):
-    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role):
+    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role, graffiti_config):
         self._region = region
         self._prefix = 'BACKUP_MONKEY'
         if label:
@@ -37,6 +38,7 @@ class BackupMonkey(object):
         self._cross_account_number = cross_account_number
         self._cross_account_role = cross_account_role
         self._conn = self.get_connection()
+        self._tag_with_graffiti_config = graffiti_config
 
     def get_connection(self):
         ret = None
@@ -121,7 +123,11 @@ class BackupMonkey(object):
             log.info('Creating snapshot of %s: %s', volume.id, description)
             for attempt in range(5):
                 try:
-                    volume.create_snapshot(description)
+                    snap = volume.create_snapshot(description)
+                    if self._tag_with_graffiti_config:
+                        cmd = ("graffiti-monkey --region " + self._region + " --config " + self._tag_with_graffiti_config + " --novolumes --snapshots").split()
+                        log.info("Tagging snapshot: %s", snap.id)
+                        subprocess.call(cmd + [str(snap.id)])
                 except boto.exception.EC2ResponseError, e:
                     log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
                     break

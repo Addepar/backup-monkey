@@ -55,6 +55,8 @@ def run():
                         help='Do a cross-account snapshot (this is the account number to do snapshots on). NOTE: This requires that you pass in the --cross-account-role parameter. E.g. --cross-account-number 111111111111 --cross-account-role Snapshot')
     parser.add_argument('--cross-account-role', action='store',
                         help='The name of the role that backup-monkey will assume when doing a cross-account snapshot. E.g. --cross-account-role Snapshot')
+    parser.add_argument('--path-to-graffiti-config', action='store', 
+                        help='backup-monkey can tag all created snapshots by using graffiti-monkey, if this is desired provide the absolute path to the graffiti config')
 
     args = parser.parse_args()
 
@@ -95,7 +97,8 @@ def run():
                               args.reverse_tags,
                               args.label,
                               args.cross_account_number,
-                              args.cross_account_role)
+                              args.cross_account_role,
+                              args.path_to_graffiti_config)
         
         if not args.remove_only:
             monkey.snapshot_volumes()
