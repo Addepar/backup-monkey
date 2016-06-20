@@ -1,10 +1,6 @@
 Backup Monkey
 =============
 
-.. image:: https://travis-ci.org/fsperling/backup-monkey.png?branch=master
-   :target: https://travis-ci.org/fsperling/backup-monkey
-   :alt: Build Status
-
 A monkey that makes sure you have a backup of your EBS volumes in case something goes wrong. 
 
 It is designed specifically for Amazon Web Services (AWS), and uses Python and Boto.
