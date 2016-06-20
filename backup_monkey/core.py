@@ -27,11 +27,10 @@ __all__ = ('BackupMonkey', 'Logging')
 log = logging.getLogger(__name__)
 
 class BackupMonkey(object):
-    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role, graffiti_config):
+    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role, graffiti_config, snapshot_prefix):
         self._region = region
-        self._prefix = 'BACKUP_MONKEY'
-        if label:
-            self._prefix += ' ' + label
+        self._prefix = snapshot_prefix
+        self._label = label
         self._snapshots_per_volume = max_snapshots_per_volume
         self._tags = tags
         self._reverse_tags = reverse_tags
@@ -113,7 +112,7 @@ class BackupMonkey(object):
         volumes = self.get_volumes_to_snapshot()
         log.info('Found %d volumes', len(volumes))
         for volume in volumes:            
-            description_parts = [self._prefix]
+            description_parts = [self._prefix + " " + self._label]
             description_parts.append(volume.id)
             if volume.attach_data.instance_id:
                 description_parts.append(volume.attach_data.instance_id)
@@ -156,6 +155,9 @@ class BackupMonkey(object):
         for snapshot in snapshots:
             if not snapshot.description.startswith(self._prefix):
                 log.debug('Skipping %s as prefix does not match', snapshot.id)
+                continue
+            if self._label and self._label not in snapshot.description:
+                log.debug('Skipping %s as label does not match', snapshot.id)
                 continue
             if not snapshot.status == 'completed':
                 log.debug('Skipping %s as it is not a complete snapshot', snapshot.id)

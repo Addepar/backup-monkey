@@ -41,6 +41,8 @@ def run():
                         help='Only snapshot EBS volumes, do not remove old snapshots')
     parser.add_argument('--remove-only', action='store_true', default=False,
                         help='Only remove old snapshots, do not create new snapshots')
+    parser.add_argument('--snapshot-prefix', action='store', default="BACKUP_MONKEY",
+                        help='Only act on snapshots that start with this prefix')
     parser.add_argument('--verbose', '-v', action='count', 
                         help='enable verbose output (-vvv for more)')
     parser.add_argument('--version', action='version', version='%(prog)s ' + __version__,
@@ -98,7 +100,8 @@ def run():
                               args.label,
                               args.cross_account_number,
                               args.cross_account_role,
-                              args.path_to_graffiti_config)
+                              args.path_to_graffiti_config,
+                              args.snapshot_prefix)
         
         if not args.remove_only:
             monkey.snapshot_volumes()
