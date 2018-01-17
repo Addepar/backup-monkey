@@ -27,7 +27,7 @@ __all__ = ('BackupMonkey', 'Logging')
 log = logging.getLogger(__name__)
 
 class BackupMonkey(object):
-    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role, graffiti_config, snapshot_prefix):
+    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role, graffiti_config, snapshot_prefix, ratelimit):
         self._region = region
         self._prefix = snapshot_prefix
         self._label = label
@@ -36,6 +36,7 @@ class BackupMonkey(object):
         self._reverse_tags = reverse_tags
         self._cross_account_number = cross_account_number
         self._cross_account_role = cross_account_role
+        self._ratelimit = ratelimit
         self._conn = self.get_connection()
         self._tag_with_graffiti_config = graffiti_config
 
@@ -139,7 +140,7 @@ class BackupMonkey(object):
             else:
                 log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume.id, attempt)
                 continue
-
+            sleep(self._ratelimit)
         return True
 
 

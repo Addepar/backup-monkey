@@ -71,11 +71,17 @@ Usage
                             The name of the role that backup-monkey will assume
                             when doing a cross-account snapshot. E.g. --cross-
                             account-role Snapshot
+<<<<<<< HEAD
       --path-to-graffiti-config PATH_TO_GRAFFITI_CONFIG
                             backup-monkey can tag all created snapshots by using
                             graffiti-monkey, if this is desired provide the
                             absolute path to the graffiti config
 
+=======
+      --ratelimit RATELIMIT
+                            Time to wait in seconds between subsequent requests to
+                            the AWS API. E.g. --ratelimit 5
+>>>>>>> support-ratelimit-avoidance
 
 Examples
 --------

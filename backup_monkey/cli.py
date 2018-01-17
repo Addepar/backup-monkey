@@ -59,6 +59,8 @@ def run():
                         help='The name of the role that backup-monkey will assume when doing a cross-account snapshot. E.g. --cross-account-role Snapshot')
     parser.add_argument('--path-to-graffiti-config', action='store', 
                         help='backup-monkey can tag all created snapshots by using graffiti-monkey, if this is desired provide the absolute path to the graffiti config')
+    parser.add_argument('--ratelimit', action='store', default=0,
+                        help='Time to wait in seconds between subsequent requests to the AWS API. E.g. --ratelimit 5')
 
     args = parser.parse_args()
 
@@ -101,7 +103,8 @@ def run():
                               args.cross_account_number,
                               args.cross_account_role,
                               args.path_to_graffiti_config,
-                              args.snapshot_prefix)
+                              args.snapshot_prefix,
+                              args.ratelimit)
         
         if not args.remove_only:
             monkey.snapshot_volumes()
