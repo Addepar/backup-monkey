@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import time
+import subprocess
 
-from boto.exception import NoAuthHandlerFound
+from exceptions import *
+
+import boto
 from boto import ec2
+
 
 from backup_monkey.exceptions import BackupMonkeyException
 
@@ -22,17 +27,17 @@ __all__ = ('BackupMonkey', 'Logging')
 log = logging.getLogger(__name__)
 
 class BackupMonkey(object):
-    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role):
+    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role, graffiti_config, snapshot_prefix):
         self._region = region
-        self._prefix = 'BACKUP_MONKEY'
-        if label:
-            self._prefix += ' ' + label
+        self._prefix = snapshot_prefix
+        self._label = label
         self._snapshots_per_volume = max_snapshots_per_volume
         self._tags = tags
         self._reverse_tags = reverse_tags
         self._cross_account_number = cross_account_number
         self._cross_account_role = cross_account_role
         self._conn = self.get_connection()
+        self._tag_with_graffiti_config = graffiti_config
 
     def get_connection(self):
         ret = None
@@ -107,7 +112,7 @@ class BackupMonkey(object):
         volumes = self.get_volumes_to_snapshot()
         log.info('Found %d volumes', len(volumes))
         for volume in volumes:            
-            description_parts = [self._prefix]
+            description_parts = [self._prefix + " " + self._label]
             description_parts.append(volume.id)
             if volume.attach_data.instance_id:
                 description_parts.append(volume.attach_data.instance_id)
@@ -115,7 +120,26 @@ class BackupMonkey(object):
                 description_parts.append(volume.attach_data.device)
             description = ' '.join(description_parts)
             log.info('Creating snapshot of %s: %s', volume.id, description)
-            volume.create_snapshot(description)
+            for attempt in range(5):
+                try:
+                    snap = volume.create_snapshot(description)
+                    if self._tag_with_graffiti_config:
+                        cmd = ("graffiti-monkey --region " + self._region + " --config " + self._tag_with_graffiti_config + " --novolumes --snapshots").split()
+                        log.info("Tagging snapshot: %s", snap.id)
+                        subprocess.call(cmd + [str(snap.id)])
+                except boto.exception.EC2ResponseError, e:
+                    log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
+                    break
+                except boto.exception.BotoServerError, e:
+                    log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume.id, attempt)
+                    time.sleep(attempt)
+                    break
+                else:
+                    break
+            else:
+                log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume.id, attempt)
+                continue
+
         return True
 
 
@@ -132,6 +156,9 @@ class BackupMonkey(object):
             if not snapshot.description.startswith(self._prefix):
                 log.debug('Skipping %s as prefix does not match', snapshot.id)
                 continue
+            if self._label and self._label not in snapshot.description:
+                log.debug('Skipping %s as label does not match', snapshot.id)
+                continue
             if not snapshot.status == 'completed':
                 log.debug('Skipping %s as it is not a complete snapshot', snapshot.id)
                 continue
@@ -147,7 +174,22 @@ class BackupMonkey(object):
             for i in range(self._snapshots_per_volume, num_snapshots):
                 snapshot = most_recent_snapshots[i]
                 log.info(' Deleting %s: %s', snapshot.id, snapshot.description)
-                snapshot.delete()
+                for attempt in range(5):
+                    try:
+                        snapshot.delete()
+                    except boto.exception.EC2ResponseError, e:
+                        log.error("Encountered Error %s on volume %s", e.error_code, volume_id)
+                        break
+                    except boto.exception.BotoServerError, e:
+                        log.error("Encountered Error %s on volume %s, waiting %d seconds then retrying", e.error_code, volume_id, attempt)
+                        time.sleep(attempt)
+                        break
+                    else:
+                        break
+                else:
+                    log.error("Encountered Error %s on volume %s, %d retries failed, continuing", e.error_code, volume_id, attempt)
+                    continue
+
         return True
 
 

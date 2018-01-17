@@ -3,10 +3,6 @@ Backup Monkey
 
 This is a fork of https://github.com/Answers4AWS/backup-monkey.
 
-.. image:: https://travis-ci.org/Answers4AWS/backup-monkey.png?branch=master
-   :target: https://travis-ci.org/Answers4AWS/backup-monkey
-   :alt: Build Status
-
 A monkey that makes sure you have a backup of your EBS volumes in case something goes wrong. 
 
 It is designed specifically for Amazon Web Services (AWS), and uses Python and Boto.
@@ -23,8 +19,10 @@ Usage
                          [--remove-only] [--verbose] [--version]
                          [--tags TAGS [TAGS ...]] [--reverse-tags]
                          [--label LABEL]
+                         [--snapshot-prefix SNAPSHOT_PREFIX]
                          [--cross-account-number CROSS_ACCOUNT_NUMBER]
                          [--cross-account-role CROSS_ACCOUNT_ROLE]
+                         [--path-to-graffiti-config PATH_TO_GRAFFITI_CONFIG]
 
     Loops through all EBS volumes, and snapshots them, then loops through all
     snapshots, and removes the oldest ones.
@@ -58,6 +56,11 @@ Usage
                               backup-monkey --max-snapshots-per-volume 6 --label daily
                               backup-monkey --max-snapshots-per-volume 4 --label weekly
                             You save 6 + 4 snapshots max. instead 4 or 6
+      --snapshot-prefix SNAPSHOT_PREFIX
+                           Created snapshots will contain this prefix. Only
+                           considers snapshots for removal that start with this
+                           prefix. Default: BACKUP_MONKEY
+
       --cross-account-number CROSS_ACCOUNT_NUMBER
                             Do a cross-account snapshot (this is the account
                             number to do snapshots on). NOTE: This requires that
@@ -68,6 +71,11 @@ Usage
                             The name of the role that backup-monkey will assume
                             when doing a cross-account snapshot. E.g. --cross-
                             account-role Snapshot
+      --path-to-graffiti-config PATH_TO_GRAFFITI_CONFIG
+                            backup-monkey can tag all created snapshots by using
+                            graffiti-monkey, if this is desired provide the
+                            absolute path to the graffiti config
+
 
 Examples
 --------
@@ -100,7 +108,7 @@ Alternatively, if you prefer to install from source:
 
 ::
 
-    git clone git@github.com:Answers4AWS/backup-monkey.git
+    git clone git@github.com:fsperling/backup-monkey.git
     cd backup-monkey
     python setup.py install
 
