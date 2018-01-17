@@ -66,6 +66,9 @@ Usage
                             The name of the role that backup-monkey will assume
                             when doing a cross-account snapshot. E.g. --cross-
                             account-role Snapshot
+      --ratelimit RATELIMIT
+                            Time to wait in seconds between subsequent requests to
+                            the AWS API. E.g. --ratelimit 5
 
 Examples
 --------

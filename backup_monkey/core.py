@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+from time import sleep
 
 from boto.exception import NoAuthHandlerFound
 from boto import ec2
@@ -22,7 +23,7 @@ __all__ = ('BackupMonkey', 'Logging')
 log = logging.getLogger(__name__)
 
 class BackupMonkey(object):
-    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role):
+    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role, ratelimit):
         self._region = region
         self._prefix = 'BACKUP_MONKEY'
         if label:
@@ -32,6 +33,7 @@ class BackupMonkey(object):
         self._reverse_tags = reverse_tags
         self._cross_account_number = cross_account_number
         self._cross_account_role = cross_account_role
+        self._ratelimit = ratelimit
         self._conn = self.get_connection()
 
     def get_connection(self):
@@ -116,6 +118,7 @@ class BackupMonkey(object):
             description = ' '.join(description_parts)
             log.info('Creating snapshot of %s: %s', volume.id, description)
             volume.create_snapshot(description)
+            sleep(self._ratelimit)
         return True
 
 
