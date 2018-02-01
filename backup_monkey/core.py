@@ -30,7 +30,10 @@ class BackupMonkey(object):
     def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role, graffiti_config, snapshot_prefix, ratelimit):
         self._region = region
         self._prefix = snapshot_prefix
-        self._label = label
+        if label:
+            self._label = label
+        else:
+            self._label = "nolabelsorry"
         self._snapshots_per_volume = max_snapshots_per_volume
         self._tags = tags
         self._reverse_tags = reverse_tags
@@ -112,7 +115,9 @@ class BackupMonkey(object):
         log.info('Getting list of EBS volumes')
         volumes = self.get_volumes_to_snapshot()
         log.info('Found %d volumes', len(volumes))
-        for volume in volumes:            
+        for volume in volumes:
+            if not volume:
+                            
             description_parts = [self._prefix + " " + self._label]
             description_parts.append(volume.id)
             if volume.attach_data.instance_id:
