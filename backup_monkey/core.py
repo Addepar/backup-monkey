@@ -116,7 +116,7 @@ class BackupMonkey(object):
         log.info('Getting list of EBS volumes')
         volumes = self.get_volumes_to_snapshot()
         log.info('Found %d volumes', len(volumes))
-        for volume in volumes:                     
+        for volume in volumes:
             description_parts = [self._prefix + " " + self._label]
             description_parts.append(volume.id)
             if volume.attach_data.instance_id:
