@@ -14,6 +14,7 @@
 import logging
 import time
 import subprocess
+from time import sleep
 
 from exceptions import *
 
@@ -39,7 +40,7 @@ class BackupMonkey(object):
         self._reverse_tags = reverse_tags
         self._cross_account_number = cross_account_number
         self._cross_account_role = cross_account_role
-        self._ratelimit = ratelimit
+        self._ratelimit = float(ratelimit)
         self._conn = self.get_connection()
         self._tag_with_graffiti_config = graffiti_config
 
