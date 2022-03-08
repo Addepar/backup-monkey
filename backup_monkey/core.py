@@ -15,6 +15,7 @@ import logging
 import time
 import subprocess
 from time import sleep
+from datetime import datetime, timedelta
 
 from exceptions import *
 
@@ -28,16 +29,16 @@ __all__ = ('BackupMonkey', 'Logging')
 log = logging.getLogger(__name__)
 
 class BackupMonkey(object):
-    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role, graffiti_config, snapshot_prefix, ratelimit):
+    def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role, graffiti_config, snapshot_prefix, ratelimit, excludetag, dryrun, removeold):
         self._region = region
         self._prefix = snapshot_prefix
-        if label:
-            self._label = label
-        else:
-            self._label = "nolabelsorry"
+        self._label = label
         self._snapshots_per_volume = max_snapshots_per_volume
         self._tags = tags
+        self._excludetag = excludetag
         self._reverse_tags = reverse_tags
+        self._dryrun = dryrun
+        self._removeold = removeold
         self._cross_account_number = cross_account_number
         self._cross_account_role = cross_account_role
         self._ratelimit = float(ratelimit)
@@ -108,6 +109,9 @@ class BackupMonkey(object):
                 return self._conn.get_all_volumes(filters=self.get_filters())
             else:
                 volumes = self._conn.get_all_volumes()
+        if self._excludetag is not None:
+            for e in self._excludetag:
+               volumes = [v for v in volumes if e not in v.tags]
         return volumes
     
     def snapshot_volumes(self):
@@ -117,21 +121,27 @@ class BackupMonkey(object):
         volumes = self.get_volumes_to_snapshot()
         log.info('Found %d volumes', len(volumes))
         for volume in volumes:
-            description_parts = [self._prefix + " " + self._label]
+            if self._label:
+                description_parts = [self._prefix + " " + self._label]
+            else:
+                description_parts = [self._prefix]
             description_parts.append(volume.id)
             if volume.attach_data.instance_id:
                 description_parts.append(volume.attach_data.instance_id)
             if volume.attach_data.device:
                 description_parts.append(volume.attach_data.device)
             description = ' '.join(description_parts)
-            log.info('Creating snapshot of %s: %s', volume.id, description)
+            log.info('Creating snapshot of %s (%s): %s', volume.id, volume.tags.get('Name','NoName'),description)
             for attempt in range(5):
                 try:
-                    snap = volume.create_snapshot(description)
-                    if self._tag_with_graffiti_config:
-                        cmd = ("graffiti-monkey --region " + self._region + " --config " + self._tag_with_graffiti_config + " --novolumes --snapshots").split()
-                        log.info("Tagging snapshot: %s", snap.id)
-                        subprocess.call(cmd + [str(snap.id)])
+                    if not self._dryrun:
+                        snap = volume.create_snapshot(description)
+                        if self._tag_with_graffiti_config:
+                            cmd = ("graffiti-monkey --region " + self._region + " --config " + self._tag_with_graffiti_config + " --novolumes --snapshots").split()
+                            log.info("Tagging snapshot: %s", snap.id)
+                            subprocess.call(cmd + [str(snap.id)])
+                    else:
+                        log.info('Dryrun mode, skipping snapshot creation')
                 except boto.exception.EC2ResponseError, e:
                     log.error("Encountered Error %s on volume %s", e.error_code, volume.id)
                     break
@@ -169,6 +179,15 @@ class BackupMonkey(object):
                 continue
             
             log.debug('Found %s: %s', snapshot.id, snapshot.description)
+            if self._removeold > 0:
+                start_time = datetime.strptime(snapshot.start_time, "%Y-%m-%dT%H:%M:%S.%fZ")
+                if datetime.now() > start_time + timedelta(days=self._removeold):
+                    log.info('Deleting old snapshot from %s, %s: %s',snapshot.start_time,snapshot.id, snapshot.description)
+                    if not self._dryrun:
+                        snapshot.delete()
+                    else:
+                        log.info('Dryrun mode, skipping snapshot deletion')
+
             vol_snap_map.setdefault(snapshot.volume_id, []).append(snapshot)
             
         for volume_id, most_recent_snapshots in vol_snap_map.iteritems():
@@ -181,7 +200,10 @@ class BackupMonkey(object):
                 log.info(' Deleting %s: %s', snapshot.id, snapshot.description)
                 for attempt in range(5):
                     try:
-                        snapshot.delete()
+                        if not self._dryrun:
+                            snapshot.delete()
+                        else:
+                            log.info('Dryrun mode, skipping snapshot deletion')
                     except boto.exception.EC2ResponseError, e:
                         log.error("Encountered Error %s on volume %s", e.error_code, volume_id)
                         break
