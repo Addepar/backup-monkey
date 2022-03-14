@@ -183,11 +183,14 @@ class BackupMonkey(object):
                 start_time = datetime.strptime(snapshot.start_time, "%Y-%m-%dT%H:%M:%S.%fZ")
                 if datetime.now() > start_time + timedelta(days=self._removeold):
                     log.info('Deleting old snapshot from %s, %s: %s',snapshot.start_time,snapshot.id, snapshot.description)
-                    if not self._dryrun:
-                        snapshot.delete()
-                    else:
-                        log.info('Dryrun mode, skipping snapshot deletion')
-
+                    try:
+                        if not self._dryrun:
+                            snapshot.delete()
+                        else:
+                            log.info('Dryrun mode, skipping snapshot deletion')
+                    except boto.exception.EC2ResponseError, e:
+                        log.error("Encountered Error %s on snapshot %s", e.error_code, snapshot.id)
+                        pass
             vol_snap_map.setdefault(snapshot.volume_id, []).append(snapshot)
             
         for volume_id, most_recent_snapshots in vol_snap_map.iteritems():
