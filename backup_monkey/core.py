@@ -98,11 +98,14 @@ class BackupMonkey(object):
             black_list = []
             for f in filters.keys():
                 if isinstance(filters[f], list):
-                    black_list = black_list + [(f, i) for i in filters[f]]
+                    black_list = black_list + [(f, i.lower()) for i in filters[f]]
                 else:
                     black_list.append((f, filters[f]))
             for v in self._conn.get_all_volumes():
-                if len(set(v.tags.items()) - set(black_list)) == len(set(v.tags.items())):
+                lowered = {}
+                for key,value in v.tags.iteritems():
+                  lowered[key] = value.lower()
+                if len(set(lowered.items()) - set(black_list)) == len(set(lowered.items())):
                     volumes.append(v) 
         else:
             if self._tags:
