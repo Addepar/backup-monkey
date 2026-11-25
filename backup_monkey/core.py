@@ -24,6 +24,7 @@ log = logging.getLogger(__name__)
 class BackupMonkey(object):
     def __init__(self, region, max_snapshots_per_volume, tags, reverse_tags, label, cross_account_number, cross_account_role):
         self._region = region
+        self._attached_only = False
         self._prefix = 'BACKUP_MONKEY'
         if label:
             self._prefix += ' ' + label
@@ -81,6 +82,26 @@ class BackupMonkey(object):
         return filters
 
     def get_volumes_to_snapshot(self):
+        volumes = self._get_volumes_to_snapshot()
+        if getattr(self, '_attached_only', False):
+            volumes = self._only_attached_to_running(volumes)
+        return volumes
+
+    def _only_attached_to_running(self, volumes):
+        ''' Keep only volumes attached to an instance that is currently running. '''
+        running = set()
+        for inst in self._conn.get_only_instances(filters={'instance-state-name': 'running'}):
+            running.add(inst.id)
+        kept = []
+        for v in volumes:
+            iid = v.attach_data.instance_id if v.attach_data else None
+            if iid and iid in running:
+                kept.append(v)
+            else:
+                log.info('Skipping %s: not attached to a running instance', v.id)
+        return kept
+
+    def _get_volumes_to_snapshot(self):
         volumes = [] 
         if self._reverse_tags:
             filters = self.get_filters()

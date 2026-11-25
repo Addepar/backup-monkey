@@ -49,6 +49,8 @@ def run():
                         help='Only snapshot instances that match passed in tags. E.g. --tag Name:foo will snapshot all instances with a tag `Name` and value is `foo`')
     parser.add_argument('--reverse-tags', action='store_true', default=False,
                         help='Do a reverse match on the passed in tags. E.g. --tag Name:foo --reverse-tags will snapshot all instances that do not have a `Name` tag with the value `foo`')
+    parser.add_argument('--attached-only', action='store_true', default=False,
+                        help='Only snapshot volumes attached to a running instance. Unattached volumes and volumes of stopped or terminated instances are skipped.')
     parser.add_argument('--label', action='store',
                         help='Only snapshot instances that match passed in label are created or deleted. Default: None. Selected all snapshot. You have the posibility of create a different strategies for daily, weekly and monthly for example. Label daily won\'t deleted label weekly')
     parser.add_argument('--cross-account-number', action='store',
@@ -96,6 +98,7 @@ def run():
                               args.label,
                               args.cross_account_number,
                               args.cross_account_role)
+        monkey._attached_only = args.attached_only
         
         if not args.remove_only:
             monkey.snapshot_volumes()
